@@ -4,7 +4,7 @@ import type { MeetingInfo } from "./gap-analyzer.js";
 
 const execAsync = promisify(exec);
 
-const OWNER = "danielmeppiel";
+const OWNER = "31Nick";
 const REPO = "corporate-website";
 
 interface EpicIssueResult {

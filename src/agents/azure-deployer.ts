@@ -6,7 +6,7 @@ import { join } from "path";
 const execAsync = promisify(exec);
 
 const REPO = "corporate-website";
-const REPO_PATH = `/Users/${process.env.USER || "danielmeppiel"}/Repos/${REPO}`;
+const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/${REPO}`;
 const ENV_NAME = "corporate-website-dev";
 const AZURE_LOCATION = "eastus2";
 

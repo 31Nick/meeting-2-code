@@ -7,10 +7,10 @@ import { createAgentSession } from "./session-helpers.js";
 
 const execAsync = promisify(exec);
 
-const OWNER = "danielmeppiel";
+const OWNER = "31Nick";
 const REPO = "corporate-website";
 const REPO_URL = `https://github.com/${OWNER}/${REPO}.git`;
-const REPO_PATH = `/Users/${process.env.USER || "danielmeppiel"}/Repos/${REPO}`;
+const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/${REPO}`;
 
 interface LocalGapItem {
     id: number;
