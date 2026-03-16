@@ -263,7 +263,10 @@ export async function analyzeSelectedGaps(
                 systemMessage: {
                     content: `You are a senior software architect performing gap analysis on the GitHub repository "31Nick/m2c-workload".
 
-You have access to GitHub MCP tools — USE THEM to browse the repository structure, read source files, and understand what currently exists.
+Preferred approach: use GitHub MCP tools to browse the repository structure, read source files, and understand what currently exists.
+
+If GitHub MCP tools are unavailable or fail, you MUST fall back to local filesystem tools in the current working directory (${REPO_PATH}) to inspect the repository.
+Do NOT ask the user to make the repo public or clone it — continue analysis using available local files.
 
 For the requirement you are given, you MUST:
 1. Browse the repo to find relevant files
@@ -288,7 +291,7 @@ Return ONLY a valid JSON object (no markdown, no commentary):
 
 "${req.text}"
 
-Use GitHub MCP tools to browse and read the actual source files. Be specific about what files exist and what's missing.
+Use GitHub MCP tools first; if unavailable, use local filesystem tools in the working directory. Be specific about what files exist and what's missing.
 Return ONLY a valid JSON object.`,
             }, 120_000);
 

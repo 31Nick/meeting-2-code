@@ -1,9 +1,10 @@
 import { existsSync, readdirSync, statSync } from "fs";
 import { homedir } from "os";
-import { basename, join } from "path";
+import { basename, dirname, join, parse } from "path";
 
 const DEFAULT_SEARCH_ROOT = join(homedir(), "VSCode Repo");
 const LEGACY_FALLBACK_ROOT = join(homedir(), "Repos");
+const WINDOWS_DRIVE_VSCODE_REPO = join(parse(process.cwd()).root, "VSCode Repo");
 const MAX_SEARCH_DEPTH = 5;
 
 const IGNORED_DIRS = new Set([
@@ -19,6 +20,45 @@ const IGNORED_DIRS = new Set([
 ]);
 
 const pathCache = new Map<string, string>();
+
+function collectCwdAncestors(): string[] {
+    const ancestors: string[] = [];
+    let current = process.cwd();
+
+    while (true) {
+        ancestors.push(current);
+        const parent = dirname(current);
+        if (parent === current) break;
+        current = parent;
+    }
+
+    return ancestors;
+}
+
+function buildSearchRoots(): string[] {
+    const explicit = [process.env.M2C_REPO_SEARCH_ROOT].filter((p): p is string => !!p);
+    const cwdAncestors = collectCwdAncestors();
+    const vscodeRepoAncestor = cwdAncestors.find((p) => basename(p).toLowerCase() === "vscode repo");
+
+    const candidates = [
+        ...explicit,
+        process.cwd(),
+        ...(vscodeRepoAncestor ? [vscodeRepoAncestor] : []),
+        WINDOWS_DRIVE_VSCODE_REPO,
+        DEFAULT_SEARCH_ROOT,
+        LEGACY_FALLBACK_ROOT,
+    ];
+
+    const unique: string[] = [];
+    const seen = new Set<string>();
+    for (const candidate of candidates) {
+        if (!candidate || seen.has(candidate)) continue;
+        seen.add(candidate);
+        if (existsSync(candidate)) unique.push(candidate);
+    }
+
+    return unique;
+}
 
 function searchRepoPath(rootDir: string, repoName: string, depth: number): string | null {
     if (!existsSync(rootDir) || depth < 0) return null;
@@ -62,11 +102,7 @@ export function resolveRepoPath(repoName: string): string {
     const cached = pathCache.get(repoName);
     if (cached) return cached;
 
-    const roots = [
-        process.env.M2C_REPO_SEARCH_ROOT,
-        DEFAULT_SEARCH_ROOT,
-        LEGACY_FALLBACK_ROOT,
-    ].filter((p): p is string => !!p && existsSync(p));
+    const roots = buildSearchRoots();
 
     for (const root of roots) {
         const found = searchRepoPath(root, repoName, MAX_SEARCH_DEPTH);
