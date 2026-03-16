@@ -182,6 +182,7 @@ export function buildQAGapTable() {
         // Section 1: Analyze findings
         const gapSummary = gap && gap.gap ? escapeHtml(gap.gap) : '\u2014';
         const complexity = gap && gap.complexity ? `<span class="complexity-badge ${gap.complexity.toLowerCase()}">${escapeHtml(gap.complexity)}</span>` : '\u2014';
+        const domain = gap && gap.domain ? `<span class="domain-badge ${escapeHtml(gap.domain)}">${escapeHtml(gap.domain === 'infrastructure' ? 'Infrastructure' : gap.domain === 'hybrid' ? 'Hybrid' : 'Application')}</span>` : '\u2014';
         const effort = gap && gap.estimatedEffort ? escapeHtml(gap.estimatedEffort) : '\u2014';
 
         // Section 2: Build/dispatch info
@@ -218,6 +219,10 @@ export function buildQAGapTable() {
                             <div class="build-detail-item">
                                 <span class="detail-label">Complexity</span>
                                 <span class="detail-value">${complexity}</span>
+                            </div>
+                            <div class="build-detail-item">
+                                <span class="detail-label">Workstream</span>
+                                <span class="detail-value">${domain}</span>
                             </div>
                             <div class="build-detail-item">
                                 <span class="detail-label">Estimated Effort</span>

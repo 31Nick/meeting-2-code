@@ -11,6 +11,22 @@ import {
 } from './stage-controller.js';
 import { getGaps, setGaps } from './analyze-flow.js';
 
+function normalizeDomain(domain) {
+    if (domain === 'infrastructure' || domain === 'hybrid' || domain === 'application') return domain;
+    return 'application';
+}
+
+function getDomainLabel(domain) {
+    if (domain === 'infrastructure') return 'Infrastructure';
+    if (domain === 'hybrid') return 'Hybrid';
+    return 'Application';
+}
+
+function renderDomainBadge(domain) {
+    const normalized = normalizeDomain(domain);
+    return `<button type="button" class="domain-badge ${normalized} build-domain-filter-trigger" data-domain="${normalized}" title="Filter build rows by ${getDomainLabel(normalized)}">${getDomainLabel(normalized)}</button>`;
+}
+
 // ─── Build row expand ───────────────────────────────────────────
 /**
  * Toggle the expandable detail row for a dispatch/build queue row.
@@ -32,6 +48,55 @@ let dispatchedGapIds = new Set();
 let dispatchInProgress = false;
 let dispatchTotalItems = 0;
 let dispatchCompletedItems = 0;
+let activeDomainFilter = 'all';
+
+function handleDomainBadgeClick(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const badge = target.closest('.build-domain-filter-trigger');
+    if (!badge) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const domain = badge.getAttribute('data-domain') || 'application';
+    activeDomainFilter = activeDomainFilter === domain ? 'all' : domain;
+    applyBuildDomainFilter();
+}
+
+function ensureBuildDomainFilterBinding() {
+    const tbody = document.getElementById('dispatchTableBody');
+    if (!tbody || tbody.dataset.domainFilterBound === '1') return;
+    tbody.addEventListener('click', handleDomainBadgeClick);
+    tbody.dataset.domainFilterBound = '1';
+}
+
+function applyBuildDomainFilter() {
+    const tbody = document.getElementById('dispatchTableBody');
+    if (!tbody) return;
+
+    const allBadges = tbody.querySelectorAll('.build-domain-filter-trigger');
+    allBadges.forEach((badge) => {
+        const domain = badge.getAttribute('data-domain') || 'application';
+        badge.classList.toggle('is-active', activeDomainFilter !== 'all' && domain === activeDomainFilter);
+    });
+
+    const rows = tbody.querySelectorAll('.dispatch-row');
+    rows.forEach((row) => {
+        const domain = row.getAttribute('data-domain') || 'application';
+        const show = activeDomainFilter === 'all' || domain === activeDomainFilter;
+        row.classList.toggle('domain-filter-hidden', !show);
+
+        const gapId = row.getAttribute('data-gap-id');
+        if (!gapId) return;
+        const detailRow = document.getElementById(`dispatch-detail-${gapId}`);
+        if (detailRow) {
+            detailRow.classList.toggle('domain-filter-hidden', !show);
+            if (!show) detailRow.classList.remove('show');
+        }
+    });
+}
 
 /** @returns {Set} Set of dispatched gap IDs. */
 export function getDispatchedGapIds() { return dispatchedGapIds; }
@@ -45,6 +110,7 @@ export function resetBuildFlow() {
     dispatchInProgress = false;
     dispatchTotalItems = 0;
     dispatchCompletedItems = 0;
+    activeDomainFilter = 'all';
 }
 
 // ─── Inject verify failures as dispatchable gaps ─────────────────
@@ -101,6 +167,7 @@ export function renderBuildPreview() {
 
     const tbody = document.getElementById('dispatchTableBody');
     if (!tbody) return;
+    ensureBuildDomainFilterBinding();
     // Don't override if already populated by queue
     if (tbody.children.length > 0) return;
 
@@ -122,6 +189,7 @@ export function renderBuildPreview() {
         tr.id = `dispatch-row-${gap.id}`;
         tr.className = 'dispatch-row remaining selected';
         tr.dataset.gapId = gap.id;
+        tr.dataset.domain = normalizeDomain(gap.domain);
         tr.style.animationDelay = `${i * 0.04}s`;
 
         tr.innerHTML = `
@@ -131,7 +199,7 @@ export function renderBuildPreview() {
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td class="col-req"><div class="td-requirement" onclick="toggleBuildRowExpand(${gap.id})">${escapeHtml(gap.requirement)}</div></td>
+            <td class="col-req"><div class="td-requirement" onclick="toggleBuildRowExpand(${gap.id})">${escapeHtml(gap.requirement)}</div><div class="dispatch-domain-wrap">${renderDomainBadge(gap.domain)}</div></td>
             <td class="col-dispatch-mode">
                 <select class="agent-type-select" data-gap-id="${gap.id}">
                     <option value="local" selected>💻 Local Agent</option>
@@ -151,6 +219,7 @@ export function renderBuildPreview() {
         const complexity = gap.complexity || '—';
         const effort = gap.estimatedEffort || '—';
         const details = gap.details || '';
+        const domainBadge = renderDomainBadge(gap.domain);
         detailTr.innerHTML = `
             <td colspan="6">
                 <div class="build-detail-grid">
@@ -165,6 +234,10 @@ export function renderBuildPreview() {
                     <div class="build-detail-item">
                         <span class="detail-label">Estimated Effort</span>
                         <span class="detail-value">${escapeHtml(effort)}</span>
+                    </div>
+                    <div class="build-detail-item">
+                        <span class="detail-label">Workstream</span>
+                        <span class="detail-value">${domainBadge}</span>
                     </div>
                     ${details ? `<div class="build-detail-item build-detail-full">
                         <span class="detail-label">Implementation Details</span>
@@ -197,6 +270,7 @@ export function renderBuildPreview() {
     const selectAll = document.getElementById('buildSelectAll');
     if (selectAll) selectAll.checked = true;
     updateBuildSelectedCount();
+    applyBuildDomainFilter();
 }
 
 // ─── Build Queue Selection Handlers ─────────────────────────────
@@ -484,6 +558,7 @@ export async function dispatchSelected() {
 export function renderDispatchTable(selectedGaps, cloudGaps, localGaps, developerGaps = []) {
     const gaps = getGaps();
     const tbody = document.getElementById('dispatchTableBody');
+    ensureBuildDomainFilterBinding();
 
     const allActionable = gaps.filter(g => g.hasGap);
     const selectedIds = new Set(selectedGaps.map(g => g.id));
@@ -513,6 +588,8 @@ export function renderDispatchTable(selectedGaps, cloudGaps, localGaps, develope
         const tr = document.createElement('tr');
         tr.id = `dispatch-row-${gap.id}`;
         tr.className = 'dispatch-row';
+        tr.dataset.gapId = String(gap.id);
+        tr.dataset.domain = normalizeDomain(gap.domain);
         tr.style.animationDelay = `${i * 0.04}s`;
 
         if (isDispatching) {
@@ -558,7 +635,7 @@ export function renderDispatchTable(selectedGaps, cloudGaps, localGaps, develope
         }
 
         tr.innerHTML = `
-            <td class="col-req"><div class="td-requirement" onclick="toggleBuildRowExpand(${gap.id})">${escapeHtml(gap.requirement)}</div></td>
+            <td class="col-req"><div class="td-requirement" onclick="toggleBuildRowExpand(${gap.id})">${escapeHtml(gap.requirement)}</div><div class="dispatch-domain-wrap">${renderDomainBadge(gap.domain)}</div></td>
             <td class="col-dispatch-mode">${modeBadge}</td>
             <td class="col-dispatch-issue" id="dispatch-issue-${gap.id}">${issueCell}</td>
             <td class="col-dispatch-status" id="dispatch-status-${gap.id}">${statusCell}</td>
@@ -573,6 +650,7 @@ export function renderDispatchTable(selectedGaps, cloudGaps, localGaps, develope
         const gapSummary = gap.gap || '—';
         const effort = gap.estimatedEffort || '—';
         const statusLabel = wasDispatched ? 'Dispatched' : isDispatching ? 'In Progress' : 'Queued';
+        const domainBadge = renderDomainBadge(gap.domain);
 
         detailTr.innerHTML = `
             <td colspan="5">
@@ -584,6 +662,10 @@ export function renderDispatchTable(selectedGaps, cloudGaps, localGaps, develope
                     <div class="build-detail-item">
                         <span class="detail-label">Estimated Effort</span>
                         <span class="detail-value">${escapeHtml(effort)}</span>
+                    </div>
+                    <div class="build-detail-item">
+                        <span class="detail-label">Workstream</span>
+                        <span class="detail-value">${domainBadge}</span>
                     </div>
                     <div class="build-detail-item">
                         <span class="detail-label">Dispatch Status</span>
@@ -602,6 +684,7 @@ export function renderDispatchTable(selectedGaps, cloudGaps, localGaps, develope
     });
 
     updateDispatchCounts();
+    applyBuildDomainFilter();
 }
 
 // ─── Update dispatch table row when issue is created ─────────────

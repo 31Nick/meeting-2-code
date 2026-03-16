@@ -11,6 +11,7 @@ export interface GapItem {
     complexity: "Low" | "Medium" | "High" | "Critical";
     estimatedEffort: string;
     details: string;
+    domain?: "application" | "infrastructure" | "hybrid";
 }
 
 export interface MeetingInfo {
@@ -304,6 +305,7 @@ Return ONLY a valid JSON object.`,
                 complexity: parsed.complexity || "Medium",
                 estimatedEffort: parsed.estimatedEffort || "TBD",
                 details: parsed.details || "No details available",
+                domain: "application",
             };
             gapItems.push(gap);
             onGap(gap);
@@ -317,6 +319,7 @@ Return ONLY a valid JSON object.`,
                 complexity: "Medium",
                 estimatedEffort: "TBD",
                 details: "Retry recommended",
+                domain: "application",
             };
             gapItems.push(gap);
             onGap(gap);

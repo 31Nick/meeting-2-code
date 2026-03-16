@@ -12,18 +12,20 @@
 
 ## What It Does
 
-The app walks through a three-step pipeline, fully streamed to the browser in real time:
+The app walks through a pipeline, fully streamed to the browser in real time:
 
 | Step | What happen | Powered by |
 |------|-------------|------------|
 | **1. Extract** | Retrieves notes/transcript from a Microsoft 365 meeting and extracts actionable requirements | WorkIQ MCP + Copilot SDK |
-| **2. Analyze & Create** | Compares each requirement against the target repo's codebase, identifies gaps, and creates GitHub Issues | GitHub MCP + Copilot SDK + `gh` CLI |
-| **3. Assign & Ship** | Assigns the Copilot coding agent (`copilot-swe-agent`) to each issue so it opens PRs automatically | GitHub REST API |
+| **2. Analyze (App + Infra)** | Routes each requirement to app analysis (GitHub MCP) and/or infrastructure analysis (Azure MCP), then merges hybrid requirements into a unified gap result | GitHub MCP + Azure MCP + Copilot SDK |
+| **3. Create Tasks** | Creates domain-aware GitHub Issues (application / infrastructure / hybrid) from selected gaps | `gh` CLI |
+| **4. Assign & Ship** | Assigns the Copilot coding agent (`copilot-swe-agent`) to selected issues so it opens PRs automatically | GitHub REST API |
 
 ```mermaid
 flowchart LR
     A["M365 Meeting\n(WorkIQ MCP)"] --> B["Gap Analysis\n(GitHub MCP +\nCopilot SDK)"]
-    B --> C["GitHub Issues\n(gh CLI)"]
+    B --> B2["Infra Analysis\n(Azure MCP +\nCopilot SDK)"]
+    B2 --> C["GitHub Issues\n(domain-aware)\n(gh CLI)"]
     C --> D["Copilot Coding Agent\n(REST API)\n— opens PRs —"]
 ```
 
@@ -36,8 +38,12 @@ meeting-2-code/
 │   └── agents/
 │       ├── session-helpers.ts    # Copilot SDK session wrapper (auto-approve permissions)
 │       ├── gap-analyzer.ts       # Phase 1 & 2: WorkIQ meeting extraction + codebase gap analysis
+│       ├── infra-analyzer.ts     # Azure MCP-backed infrastructure gap analysis
 │       ├── github-issues.ts      # Phase 3: Issue creation via gh CLI
-│       └── coding-agent.ts       # Phase 4: Copilot agent assignment via GitHub REST API
+│       ├── coding-agent.ts       # Phase 4: Copilot agent assignment via GitHub REST API
+│       ├── local-agent.ts        # Local build mode (direct local branch implementation)
+│       ├── azure-deployer.ts     # Azure deployment orchestration (azd)
+│       └── playwright-validator.ts # Deployed-site validation with Playwright + AI judges
 ├── public/
 │   ├── index.html                # Single-page app
 │   ├── css/                      # Modular CSS (source of truth)
@@ -58,6 +64,7 @@ meeting-2-code/
 - **[GitHub Copilot SDK](https://github.com/github/copilot-sdk)** — Creates AI agent sessions that orchestrate tool calls via MCP servers. Used for meeting extraction (WorkIQ) and codebase gap analysis (GitHub MCP).
 - **[Microsoft WorkIQ MCP](https://www.npmjs.com/package/@microsoft/workiq)** — Model Context Protocol server that connects to Microsoft 365 data (calendars, meetings, transcripts).
 - **[GitHub MCP](https://docs.github.com/en/copilot/customizing-copilot/copilot-extensions/building-copilot-extensions/building-mcp-servers-for-copilot)** — Remote MCP server for reading repository contents, searching code, and browsing file trees.
+- **Azure MCP** — Remote MCP toolset used for infrastructure requirement analysis and Azure implementation planning in mixed app+infra meetings.
 - **[GitHub CLI (`gh`)](https://cli.github.com/)** — Used for issue creation and REST API calls for Copilot coding agent assignment.
 - **[Copilot Coding Agent](https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent)** — Autonomous agent (`copilot-swe-agent[bot]`) that reads issues and opens pull requests with implementation code.
 
@@ -68,6 +75,7 @@ meeting-2-code/
 | **Node.js** | v22 or later |
 | **GitHub CLI** | Authenticated — run `gh auth login` |
 | **GitHub Copilot** | Active subscription with Copilot SDK access |
+| **Azure MCP access** | Sign in to Azure context and configure Azure MCP for your coding agent (recommended: `azd coding-agent config`) |
 | **Microsoft 365** | Account with WorkIQ access and a meeting titled *"Meeting 2 Code demo"* containing notes/transcript |
 | **Target repo** | A GitHub repository to analyze (defaults to `31Nick/m2c-workload`) |
 
@@ -99,9 +107,11 @@ The target repo is configured in the agent files. Update the `OWNER` and `REPO` 
 
 1. **Click "Analyze Meeting"** — The app creates a Copilot SDK session connected to the WorkIQ MCP server, retrieves the meeting, and extracts requirements. A second session connects to the GitHub MCP server and performs a gap analysis against the target repository for each requirement. Results stream to the UI in real time via Server-Sent Events.
 
-2. **Select gaps → "Create Issues"** — For each selected gap, the app runs `gh issue create` to open a detailed GitHub Issue with description, acceptance criteria, and effort estimate.
+2. **Select gaps → "Analyze Gaps"** — Requirements are auto-routed: app requirements use GitHub MCP analysis, infrastructure requirements use Azure MCP analysis, and hybrid requirements are merged into one result with both workstreams.
 
-3. **Select issues → "Assign Copilot"** — The app calls the GitHub REST API to assign `copilot-swe-agent[bot]` to each issue. The coding agent then autonomously creates branches and opens pull requests.
+3. **Select gaps → "Create Issues"** — For each selected gap, the app runs `gh issue create` to open a detailed GitHub Issue with domain labels (`application`, `infrastructure`, `hybrid`), acceptance criteria, and effort estimate.
+
+4. **Select issues → "Assign Copilot"** — The app calls the GitHub REST API to assign `copilot-swe-agent[bot]` to each issue. The coding agent then autonomously creates branches and opens pull requests.
 
 ## Development
 

@@ -14,6 +14,22 @@ import { getAnalysisPhase, setAnalysisPhase, updateAnalyzeCount } from './meetin
 // ─── Gap data ──────────────────────────────────────────────────
 let gaps = [];
 
+function normalizeDomain(domain) {
+    if (domain === 'infrastructure' || domain === 'hybrid' || domain === 'application') return domain;
+    return 'application';
+}
+
+function getDomainLabel(domain) {
+    if (domain === 'infrastructure') return 'Infrastructure';
+    if (domain === 'hybrid') return 'Hybrid';
+    return 'Application';
+}
+
+function renderDomainBadge(domain) {
+    const normalized = normalizeDomain(domain);
+    return `<span class="domain-badge ${normalized}">${getDomainLabel(normalized)}</span>`;
+}
+
 /** @returns {Array} The current gaps array. */
 export function getGaps() { return gaps; }
 
@@ -340,8 +356,9 @@ export function enrichRowWithGap(gap) {
         const cb = targetRow.querySelector('input[type="checkbox"]');
         if (cb) { cb.checked = false; cb.disabled = true; }
     } else {
+        const domainBadge = renderDomainBadge(gap.domain);
         cells[2].innerHTML = `<span class="status-chip analyzed"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg> Gap Found</span>`;
-        cells[3].innerHTML = `<span class="complexity-badge ${gap.complexity.toLowerCase()}">${gap.complexity}</span>`;
+        cells[3].innerHTML = `<div class="complexity-domain-stack"><span class="complexity-badge ${gap.complexity.toLowerCase()}">${gap.complexity}</span>${domainBadge}</div>`;
         cells[3].style.textAlign = 'center';
     }
 
@@ -356,11 +373,13 @@ export function enrichRowWithGap(gap) {
             const csVal = grid.querySelector('[data-field="currentState"] .detail-value');
             const gapVal = grid.querySelector('[data-field="gap"] .detail-value');
             const effVal = grid.querySelector('[data-field="effort"] .detail-value');
+            const domainVal = grid.querySelector('[data-field="domain"] .detail-value');
             const detItem = grid.querySelector('[data-field="details"]');
             const detVal = detItem ? detItem.querySelector('.detail-value') : null;
             if (csVal) csVal.textContent = gap.currentState || '\u2014';
             if (gapVal) gapVal.textContent = gap.gap || '\u2014';
             if (effVal) effVal.textContent = gap.estimatedEffort || '\u2014';
+            if (domainVal) domainVal.innerHTML = renderDomainBadge(gap.domain);
             if (detVal && gap.details) {
                 detVal.textContent = gap.details;
                 if (detItem) detItem.style.display = '';

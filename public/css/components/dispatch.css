@@ -104,6 +104,28 @@
     opacity: 0.55;
 }
 
+.dispatch-domain-wrap {
+    margin-top: 6px;
+}
+
+.build-domain-filter-trigger {
+    cursor: pointer;
+    transition: transform var(--duration-fast), box-shadow var(--duration-fast), opacity var(--duration-fast);
+}
+
+.build-domain-filter-trigger:hover {
+    transform: translateY(-1px);
+}
+
+.build-domain-filter-trigger.is-active {
+    box-shadow: 0 0 0 1px var(--accent-blue-glow), 0 4px 12px rgba(59, 130, 246, 0.18);
+}
+
+.dispatch-row.domain-filter-hidden,
+.build-detail-expandable.domain-filter-hidden {
+    display: none !important;
+}
+
 /* Dispatch mode badges */
 .dispatch-mode-badge {
     display: inline-flex;
@@ -241,7 +263,7 @@
 }
 
 .build-detail-grid--dispatch {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
 .build-detail-item {

@@ -25,6 +25,7 @@
 @import "components/panel-header.css";
 @import "components/gap-table.css";
 @import "components/complexity-badge.css";
+@import "components/domain-badge.css";
 @import "components/issue-cards.css";
 @import "components/issue-table.css";
 @import "components/dispatch.css";

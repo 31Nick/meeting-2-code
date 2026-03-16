@@ -1,5 +1,7 @@
 # Architecture Design: MDD Frontend Modular Refactor
 
+> **Note (current backend capability):** The server-side agent pipeline now supports mixed requirement routing for both application and infrastructure work. During `/api/analyze-gaps`, requirements are classified as `application`, `infrastructure`, or `hybrid`; app analysis is executed through GitHub MCP and infrastructure analysis through Azure MCP. Hybrid requirements are merged into a single gap result and issue creation applies domain labels (`application`, `infrastructure`, `hybrid`).
+
 ## 1. Executive Summary
 
 The current `app.js` (~3100 lines) is a monolithic file mixing state management, DOM rendering, SSE streaming, event handling, animation, and business logic. This design document specifies a clean modular architecture using **vanilla ES modules** (`<script type="module">`) with no build step, no bundler, and no framework.

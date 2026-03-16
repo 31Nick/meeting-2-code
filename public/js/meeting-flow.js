@@ -347,6 +347,10 @@ export function renderRequirementsForSelection(reqs) {
                         <span class="detail-label">Estimated Effort</span>
                         <span class="detail-value">\u2014</span>
                     </div>
+                    <div class="detail-item" data-field="domain">
+                        <span class="detail-label">Workstream</span>
+                        <span class="detail-value">\u2014</span>
+                    </div>
                     <div class="detail-item detail-item-full" data-field="details" style="display:none;">
                         <span class="detail-label">Implementation Details</span>
                         <span class="detail-value"></span>

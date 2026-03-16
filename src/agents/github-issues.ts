@@ -14,6 +14,7 @@ interface GapItem {
     complexity: "Low" | "Medium" | "High" | "Critical";
     estimatedEffort: string;
     details: string;
+    domain?: "application" | "infrastructure" | "hybrid";
 }
 
 interface CreatedIssue {
@@ -46,6 +47,18 @@ export async function createGithubIssues(
 
     const createdIssues: CreatedIssue[] = [];
 
+    // Ensure domain labels exist (ignore if they already exist)
+    for (const label of ["application", "infrastructure", "hybrid"]) {
+        try {
+            await execAsync(
+                `gh label create ${label} --description "Meeting-2-Code ${label} work item" --color 0e8a16 -R ${OWNER}/${REPO}`,
+                { timeout: 10_000, env: { ...process.env, GITHUB_TOKEN: undefined, GH_PAGER: "cat" } },
+            );
+        } catch {
+            // label may already exist
+        }
+    }
+
     for (let i = 0; i < options.gaps.length; i++) {
         const gap = options.gaps[i]!;
         const label = gap.requirement.length > 50 ? gap.requirement.substring(0, 50) + "..." : gap.requirement;
@@ -53,7 +66,9 @@ export async function createGithubIssues(
         log(`Creating issue ${i + 1}/${total}: ${label}`);
         console.log(`[github-issues] Creating issue ${i + 1}/${total}...`);
 
-        const title = `[Meeting 2 Code Redesign] ${gap.requirement}`;
+        const domain = gap.domain || "application";
+        const domainPrefix = domain === "infrastructure" ? "[Infra] " : domain === "hybrid" ? "[Hybrid] " : "";
+        const title = `${domainPrefix}[Meeting 2 Code Redesign] ${gap.requirement}`;
         const bodyParts = [
             "## Description",
             gap.gap,
@@ -69,6 +84,9 @@ export async function createGithubIssues(
             "",
             "## Estimated Effort",
             `${gap.estimatedEffort} | Complexity: ${gap.complexity}`,
+            "",
+            "## Workstream",
+            domain,
         ];
 
         if (options.epicIssueNumber && options.epicIssueNumber > 0) {
@@ -80,7 +98,7 @@ export async function createGithubIssues(
         try {
             // Use gh issue create with --json to get structured output
             const { stdout, stderr } = await execAsync(
-                `gh issue create --title ${shellEscape(title)} --body ${shellEscape(body)} --label enhancement -R ${OWNER}/${REPO}`,
+                `gh issue create --title ${shellEscape(title)} --body ${shellEscape(body)} --label enhancement --label ${domain} -R ${OWNER}/${REPO}`,
                 { timeout: 30_000, env: { ...process.env, GITHUB_TOKEN: undefined, GH_PAGER: "cat" } },
             );
 

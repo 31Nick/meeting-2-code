@@ -5,6 +5,7 @@ import { CopilotClient } from "@github/copilot-sdk";
 import type { MCPLocalServerConfig, MCPRemoteServerConfig } from "@github/copilot-sdk";
 import { extractMeetingRequirements, analyzeSelectedGaps } from "./agents/gap-analyzer.js";
 import type { GapItem, MeetingInfo } from "./agents/gap-analyzer.js";
+import { analyzeInfrastructureGaps } from "./agents/infra-analyzer.js";
 import { createEpicIssue, linkSubIssuesToEpic } from "./agents/epic-issue.js";
 import { createGithubIssues } from "./agents/github-issues.js";
 import { assignCodingAgent } from "./agents/coding-agent.js";
@@ -49,6 +50,70 @@ function getGitHubMcpConfig(): Record<string, MCPLocalServerConfig | MCPRemoteSe
             url: "https://api.githubcopilot.com/mcp/",
             tools: ["*"],
         } as MCPRemoteServerConfig,
+    };
+}
+
+function getAzureMcpConfig(): Record<string, MCPLocalServerConfig | MCPRemoteServerConfig> {
+    return {
+        azure: {
+            type: "http",
+            url: "https://api.githubcopilot.com/mcp/",
+            tools: ["*"],
+        } as MCPRemoteServerConfig,
+    };
+}
+
+type RequirementDomain = "application" | "infrastructure" | "hybrid";
+
+function classifyRequirementDomain(requirement: string): RequirementDomain {
+    const text = requirement.toLowerCase();
+
+    const infrastructureHints = [
+        "azure", "bicep", "terraform", "resource group", "subscription", "tenant", "vnet", "subnet",
+        "private endpoint", "private link", "dns", "firewall", "rbac", "managed identity", "entra",
+        "key vault", "app service plan", "container app", "container registry", "aks", "vm", "front door",
+        "application gateway", "api management", "storage account", "cosmos", "service bus", "event hub",
+        "log analytics", "monitor", "diagnostic", "policy", "landing zone", "infrastructure", "iac",
+        "network", "deploy pipeline", "environment", "quota", "sku",
+    ];
+
+    const applicationHints = [
+        "ui", "ux", "page", "screen", "component", "frontend", "backend", "api endpoint", "controller",
+        "function", "business logic", "validation", "workflow", "button", "form", "table", "card",
+        "copy", "layout", "theme", "style", "typescript", "javascript", "node", "react", "test",
+    ];
+
+    const hasInfra = infrastructureHints.some((keyword) => text.includes(keyword));
+    const hasApp = applicationHints.some((keyword) => text.includes(keyword));
+
+    if (hasInfra && hasApp) return "hybrid";
+    if (hasInfra) return "infrastructure";
+    return "application";
+}
+
+const complexityRank: Record<"Low" | "Medium" | "High" | "Critical", number> = {
+    Low: 1,
+    Medium: 2,
+    High: 3,
+    Critical: 4,
+};
+
+function pickHigherComplexity(
+    first: "Low" | "Medium" | "High" | "Critical",
+    second: "Low" | "Medium" | "High" | "Critical",
+): "Low" | "Medium" | "High" | "Critical" {
+    return complexityRank[first] >= complexityRank[second] ? first : second;
+}
+
+function mergeHybridGap(appGap: GapItem, infraGap: GapItem): GapItem {
+    return {
+        ...appGap,
+        domain: "hybrid",
+        complexity: pickHigherComplexity(appGap.complexity, infraGap.complexity),
+        estimatedEffort: `${appGap.estimatedEffort} + ${infraGap.estimatedEffort}`,
+        currentState: `${appGap.currentState}\n\nInfrastructure context:\n${infraGap.currentState}`,
+        gap: `${appGap.gap}\n\nInfrastructure gap:\n${infraGap.gap}`,
+        details: `Application workstream:\n${appGap.details}\n\nInfrastructure workstream:\n${infraGap.details}`,
     };
 }
 
@@ -126,14 +191,65 @@ app.post("/api/analyze-gaps", async (req, res) => {
     const sendEvent = sseHeaders(res);
 
     try {
-        const analysis = await analyzeSelectedGaps(client, {
-            requirements: selectedReqs,
-            githubMcp: getGitHubMcpConfig(),
-            onProgress: (step, message) => sendEvent("progress", { step, message }),
-            onGapStarted: (id) => sendEvent("gap-started", { id }),
-            onGap: (gap) => sendEvent("gap", { gap }),
-            onLog: (message) => sendEvent("log", { message }),
+        const appReqs = selectedReqs.filter((req) => {
+            const domain = classifyRequirementDomain(req.text);
+            return domain === "application" || domain === "hybrid";
         });
+        const infraReqs = selectedReqs.filter((req) => {
+            const domain = classifyRequirementDomain(req.text);
+            return domain === "infrastructure" || domain === "hybrid";
+        });
+
+        for (const req of selectedReqs) {
+            sendEvent("gap-started", { id: req.index + 1 });
+        }
+
+        sendEvent("log", {
+            message: `Routing ${selectedReqs.length} requirement(s): ${appReqs.length} app/hybrid, ${infraReqs.length} infra/hybrid`,
+        });
+
+        const [appAnalysis, infraAnalysis] = await Promise.all([
+            appReqs.length > 0
+                ? analyzeSelectedGaps(client, {
+                    requirements: appReqs,
+                    githubMcp: getGitHubMcpConfig(),
+                    onProgress: (step, message) => sendEvent("progress", { step, message }),
+                    onLog: (message) => sendEvent("log", { message }),
+                })
+                : Promise.resolve([]),
+            infraReqs.length > 0
+                ? analyzeInfrastructureGaps(client, {
+                    requirements: infraReqs,
+                    azureMcp: getAzureMcpConfig(),
+                    onProgress: (step, message) => sendEvent("progress", { step, message }),
+                    onLog: (message) => sendEvent("log", { message }),
+                })
+                : Promise.resolve([]),
+        ]);
+
+        const appById = new Map<number, GapItem>(appAnalysis.map((gap) => [gap.id, { ...gap, domain: gap.domain || "application" }]));
+        const infraById = new Map<number, GapItem>(infraAnalysis.map((gap) => [gap.id, { ...gap, domain: "infrastructure" }]));
+
+        const mergedById = new Map<number, GapItem>();
+        for (const req of selectedReqs) {
+            const id = req.index + 1;
+            const appGap = appById.get(id);
+            const infraGap = infraById.get(id);
+
+            if (appGap && infraGap) {
+                mergedById.set(id, mergeHybridGap(appGap, infraGap));
+            } else if (appGap) {
+                mergedById.set(id, { ...appGap, domain: appGap.domain || "application" });
+            } else if (infraGap) {
+                mergedById.set(id, { ...infraGap, domain: "infrastructure" });
+            }
+        }
+
+        const analysis = Array.from(mergedById.values()).sort((a, b) => a.id - b.id);
+
+        for (const gap of analysis) {
+            sendEvent("gap", { gap });
+        }
 
         // Merge into lastAnalysis (keep previous results, add/replace new)
         for (const gap of analysis) {
