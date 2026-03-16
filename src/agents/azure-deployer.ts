@@ -1,10 +1,11 @@
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
 import { mkdirSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { resolveRepoPath } from "./repo-path.js";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const REPO = "m2c-workload";
 const REPO_PATH = resolveRepoPath(REPO);
@@ -51,7 +52,7 @@ async function run(
 async function checkExistingDeployment(log: (msg: string) => void): Promise<string | null> {
     try {
         log("Checking for existing Azure deployment...");
-        const { stdout } = await run("azd show --output json 2>/dev/null", log, 30_000);
+        const { stdout } = await run("azd show --output json", log, 30_000);
         const data = JSON.parse(stdout);
         if (data?.services) {
             for (const [, svc] of Object.entries(data.services as Record<string, { endpoint?: string }>)) {
@@ -81,11 +82,11 @@ async function mergeLocalAgentBranches(log: (msg: string) => void): Promise<stri
         await run("git checkout main", log, 10_000);
 
         // List LOCAL feature/gap-* branches (created by the local agent)
-        const { stdout } = await execAsync(
-            "git branch --list 'feature/gap-*' | tr -d ' '",
-            { cwd: REPO_PATH, timeout: 10_000 },
-        );
-        const branches = stdout.trim().split("\n").filter(Boolean);
+            const { stdout } = await execFileAsync(
+                "git", ["branch", "--list", "feature/gap-*"],
+                { cwd: REPO_PATH, timeout: 10_000 },
+            );
+            const branches = stdout.trim().split("\n").map(b => b.trim()).filter(Boolean);
 
         if (branches.length === 0) {
             log("No local-agent feature branches found to merge.");
@@ -137,11 +138,11 @@ export async function resetM2CWorkloadRepo(): Promise<void> {
         log("Reset m2c-workload to origin/main.");
 
         // Delete local feature/gap-* branches
-        const { stdout } = await execAsync(
-            "git branch --list 'feature/gap-*' | tr -d ' '",
-            { cwd: REPO_PATH, timeout: 10_000 },
-        );
-        const localBranches = stdout.trim().split("\n").filter(Boolean);
+            const { stdout } = await execFileAsync(
+                "git", ["branch", "--list", "feature/gap-*"],
+                { cwd: REPO_PATH, timeout: 10_000 },
+            );
+            const localBranches = stdout.trim().split("\n").map(b => b.trim()).filter(Boolean);
         for (const branch of localBranches) {
             try {
                 await execAsync(`git branch -D ${branch}`, { cwd: REPO_PATH, timeout: 5_000 });
@@ -282,7 +283,8 @@ export async function deployToAzure(options: DeployOptions): Promise<DeployResul
                 if (statusOut.trim()) {
                     hasLocalChanges = true;
                     log(`Found uncommitted local changes:\n${statusOut.trim().split("\n").slice(0, 10).join("\n")}`);
-                    await run('git add -A && git commit -m "Include local agent changes for deployment"', log, 15_000);
+                        await run("git add -A", log, 10_000);
+                        await execFileAsync("git", ["commit", "-m", "Include local agent changes for deployment"], { cwd: REPO_PATH, timeout: 10_000 });
                     log("Committed local changes for deployment.");
                 }
             } catch (commitErr) {
@@ -315,12 +317,10 @@ export async function deployToAzure(options: DeployOptions): Promise<DeployResul
         // Also merge any local-agent branches before first deploy
         await mergeLocalAgentBranches(log);
 
-        let hasAzureYaml = false;
-        try {
-            await execAsync(`test -f ${REPO_PATH}/azure.yaml`);
-            hasAzureYaml = true;
+        const hasAzureYaml = existsSync(join(REPO_PATH, "azure.yaml"));
+        if (hasAzureYaml) {
             log("azure.yaml already exists.");
-        } catch {
+        } else {
             log("No azure.yaml found — initializing with azd...");
         }
 
@@ -350,10 +350,7 @@ export async function deployToAzure(options: DeployOptions): Promise<DeployResul
                     "        run: npm install && npm run build",
                 ].join("\n");
 
-                await execAsync(`cat > ${REPO_PATH}/azure.yaml << 'YAML'\n${azureYaml}\nYAML`, {
-                    cwd: REPO_PATH,
-                    timeout: 5_000,
-                });
+                    writeFileSync(join(REPO_PATH, "azure.yaml"), azureYaml, "utf-8");
                 log("Created azure.yaml for static web app deployment.");
             }
         }

@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from "fs";
 import { join, relative, dirname, normalize } from "path";
@@ -7,6 +7,7 @@ import { createAgentSession } from "./session-helpers.js";
 import { resolveRepoPath } from "./repo-path.js";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const OWNER = "31Nick";
 const REPO = "m2c-workload";
@@ -68,8 +69,8 @@ async function commitAndPush(branchName: string, message: string, log: (m: strin
         log("No changes to commit.");
         return;
     }
-    const safeMsg = message.replace(/"/g, '\\"').replace(/\n/g, " ");
-    await execAsync(`git commit -m "${safeMsg}"`, { cwd: REPO_PATH, timeout: 10_000 });
+    const safeMsg = message.replace(/\n/g, " ").trim();
+    await execFileAsync("git", ["commit", "-m", safeMsg], { cwd: REPO_PATH, timeout: 10_000 });
     log(`Committed changes on branch ${branchName} (local only).`);
 }
 

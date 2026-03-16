@@ -1,7 +1,10 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
+import { writeFileSync, unlinkSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const OWNER = "31Nick";
 const REPO = "m2c-workload";
@@ -39,6 +42,7 @@ export async function assignCodingAgent(
         log(`Assigning Copilot to issue #${issueNumber} (${i + 1}/${total})...`);
         console.log(`[coding-agent] Assigning copilot to #${issueNumber} (${i + 1}/${total})...`);
 
+        const tmpPayloadPath = join(tmpdir(), `m2c-assign-${Date.now()}-${i}.json`);
         try {
             const payload = JSON.stringify({
                 assignees: ["copilot-swe-agent[bot]"],
@@ -51,16 +55,22 @@ export async function assignCodingAgent(
                 },
             });
 
-            const cmd = `gh api --method POST ` +
-                `-H "Accept: application/vnd.github+json" ` +
-                `-H "X-GitHub-Api-Version: 2022-11-28" ` +
-                `/repos/${OWNER}/${REPO}/issues/${issueNumber}/assignees ` +
-                `--input - <<< '${payload}'`;
+            writeFileSync(tmpPayloadPath, payload, "utf-8");
 
-            const { stdout, stderr } = await execAsync(cmd, {
-                timeout: 30_000,
-                env: { ...process.env, GITHUB_TOKEN: undefined, GH_PAGER: "cat" },
-            });
+            const { stdout, stderr } = await execFileAsync(
+                "gh",
+                [
+                    "api", "--method", "POST",
+                    "-H", "Accept: application/vnd.github+json",
+                    "-H", "X-GitHub-Api-Version: 2022-11-28",
+                    "--input", tmpPayloadPath,
+                    `/repos/${OWNER}/${REPO}/issues/${issueNumber}/assignees`,
+                ],
+                {
+                    timeout: 30_000,
+                    env: { ...process.env, GITHUB_TOKEN: undefined, GH_PAGER: "cat" },
+                },
+            );
 
             // Check if copilot-swe-agent appears in assignees
             let assigned = false;
@@ -101,6 +111,8 @@ export async function assignCodingAgent(
             };
             results.push(result);
             onResult(result);
+        } finally {
+            try { unlinkSync(tmpPayloadPath); } catch { /* ignore */ }
         }
     }
 

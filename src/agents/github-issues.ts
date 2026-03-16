@@ -1,7 +1,11 @@
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
+import { writeFileSync, unlinkSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const OWNER = "31Nick";
 const REPO = "m2c-workload";
@@ -95,10 +99,20 @@ export async function createGithubIssues(
 
         const body = bodyParts.join("\n");
 
+        const tmpBodyPath = join(tmpdir(), `m2c-issue-${Date.now()}-${i}.md`);
+        writeFileSync(tmpBodyPath, body, "utf-8");
         try {
-            // Use gh issue create with --json to get structured output
-            const { stdout, stderr } = await execAsync(
-                `gh issue create --title ${shellEscape(title)} --body ${shellEscape(body)} --label enhancement --label ${domain} -R ${OWNER}/${REPO}`,
+            // Use execFile + --body-file to avoid Windows shell quoting issues with multiline body
+            const { stdout, stderr } = await execFileAsync(
+                "gh",
+                [
+                    "issue", "create",
+                    "--title", title,
+                    "--body-file", tmpBodyPath,
+                    "--label", "enhancement",
+                    "--label", domain,
+                    "-R", `${OWNER}/${REPO}`,
+                ],
                 { timeout: 30_000, env: { ...process.env, GITHUB_TOKEN: undefined, GH_PAGER: "cat" } },
             );
 
@@ -146,6 +160,8 @@ export async function createGithubIssues(
             };
             createdIssues.push(issue);
             onIssueCreated(issue);
+        } finally {
+            try { unlinkSync(tmpBodyPath); } catch { /* ignore */ }
         }
     }
 
@@ -158,10 +174,4 @@ export async function createGithubIssues(
     }
     console.log(`[github-issues] Done. ${successCount}/${total} issues created.`);
     return createdIssues;
-}
-
-/** Shell-escape a string for use in a command argument */
-function shellEscape(str: string): string {
-    // Replace single quotes, then wrap in single quotes
-    return "'" + str.replace(/'/g, "'\\''") + "'";
 }
