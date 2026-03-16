@@ -1,7 +1,8 @@
 import type { CopilotClient, MCPLocalServerConfig, MCPRemoteServerConfig } from "@github/copilot-sdk";
 import { createAgentSession } from "./session-helpers.js";
+import { resolveRepoPath } from "./repo-path.js";
 
-const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/m2c-workload`;
+const REPO_PATH = resolveRepoPath("m2c-workload");
 
 export interface GapItem {
     id: number;

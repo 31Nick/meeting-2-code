@@ -5,12 +5,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import type { CopilotClient } from "@github/copilot-sdk";
 import { createAgentSession } from "./session-helpers.js";
+import { resolveRepoPath } from "./repo-path.js";
 
 const execAsync = promisify(exec);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
-const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/m2c-workload`;
+const REPO_PATH = resolveRepoPath("m2c-workload");
 
 interface ValidationResult {
     requirementIndex: number;

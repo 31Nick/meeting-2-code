@@ -2,11 +2,12 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { mkdirSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
+import { resolveRepoPath } from "./repo-path.js";
 
 const execAsync = promisify(exec);
 
 const REPO = "m2c-workload";
-const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/${REPO}`;
+const REPO_PATH = resolveRepoPath(REPO);
 const ENV_NAME = "m2c-workload-dev";
 const AZURE_LOCATION = "eastus2";
 

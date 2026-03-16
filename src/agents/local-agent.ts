@@ -4,13 +4,14 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSy
 import { join, relative, dirname, normalize } from "path";
 import type { CopilotClient, MCPLocalServerConfig, MCPRemoteServerConfig } from "@github/copilot-sdk";
 import { createAgentSession } from "./session-helpers.js";
+import { resolveRepoPath } from "./repo-path.js";
 
 const execAsync = promisify(exec);
 
 const OWNER = "31Nick";
 const REPO = "m2c-workload";
 const REPO_URL = `https://github.com/${OWNER}/${REPO}.git`;
-const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/${REPO}`;
+const REPO_PATH = resolveRepoPath(REPO);
 
 interface LocalGapItem {
     id: number;
@@ -39,6 +40,8 @@ interface ExecuteLocalAgentOptions {
 
 /** Ensure the m2c-workload repo is cloned locally and up-to-date. */
 async function ensureClone(log: (m: string) => void): Promise<void> {
+    mkdirSync(dirname(REPO_PATH), { recursive: true });
+
     if (!existsSync(join(REPO_PATH, ".git"))) {
         log(`Cloning ${OWNER}/${REPO} to ${REPO_PATH}...`);
         await execAsync(`git clone ${REPO_URL} "${REPO_PATH}"`, { timeout: 120_000 });

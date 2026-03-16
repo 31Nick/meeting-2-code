@@ -1,8 +1,12 @@
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
+import { writeFileSync, unlinkSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 import type { MeetingInfo } from "./gap-analyzer.js";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const OWNER = "31Nick";
 const REPO = "m2c-workload";
@@ -66,9 +70,19 @@ export async function createEpicIssue(
         // Label may already exist — that's fine
     }
 
+    const tmpBodyPath = join(tmpdir(), `m2c-epic-${Date.now()}.md`);
+    writeFileSync(tmpBodyPath, body, "utf-8");
+
     try {
-        const { stdout, stderr } = await execAsync(
-            `gh issue create --title ${shellEscape(title)} --body ${shellEscape(body)} --label epic -R ${OWNER}/${REPO}`,
+        const { stdout, stderr } = await execFileAsync(
+            "gh",
+            [
+                "issue", "create",
+                "--title", title,
+                "--body-file", tmpBodyPath,
+                "--label", "epic",
+                "-R", `${OWNER}/${REPO}`,
+            ],
             { timeout: 30_000, env: { ...process.env, GITHUB_TOKEN: undefined, GH_PAGER: "cat" } },
         );
 
@@ -87,11 +101,15 @@ export async function createEpicIssue(
             return { number: 0, url: "#" };
         }
     } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const stderr = (err as { stderr?: string })?.stderr?.trim();
+        const msg = stderr ? `${errMsg}\n${stderr}` : errMsg;
         log(`⚠ Failed to create epic: ${msg.substring(0, 150)}`);
         console.error("[epic-issue] Error:", msg);
         // Don't throw — epic is nice-to-have, shouldn't block the flow
         return { number: 0, url: "#" };
+    } finally {
+        try { unlinkSync(tmpBodyPath); } catch { /* ignore temp cleanup failures */ }
     }
 }
 
@@ -151,6 +169,3 @@ export async function linkSubIssuesToEpic(
     }
 }
 
-function shellEscape(str: string): string {
-    return "'" + str.replace(/'/g, "'\\''") + "'";
-}
