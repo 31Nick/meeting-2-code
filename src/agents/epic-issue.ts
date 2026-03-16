@@ -5,7 +5,7 @@ import type { MeetingInfo } from "./gap-analyzer.js";
 const execAsync = promisify(exec);
 
 const OWNER = "31Nick";
-const REPO = "corporate-website";
+const REPO = "m2c-workload";
 
 interface EpicIssueResult {
     number: number;
@@ -21,7 +21,7 @@ export async function createEpicIssue(
     log("Creating epic issue on GitHub...");
     console.log("[epic-issue] Creating epic issue...");
 
-    const title = `[Epic] ${meetingInfo.title || "Contoso Industries Redesign"}`;
+    const title = `[Epic] ${meetingInfo.title || "Meeting 2 Code demo"}`;
 
     // Build a markdown table of requirements
     const reqRows = requirements
@@ -29,7 +29,7 @@ export async function createEpicIssue(
         .join("\n");
 
     const bodyParts: string[] = [
-        `## 📋 ${meetingInfo.title || "Contoso Industries Redesign"}`,
+        `## 📋 ${meetingInfo.title || "Meeting 2 Code demo"}`,
         "",
     ];
 

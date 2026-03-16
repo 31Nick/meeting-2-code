@@ -4,7 +4,7 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 const OWNER = "31Nick";
-const REPO = "corporate-website";
+const REPO = "m2c-workload";
 
 interface AssignResult {
     issueNumber: number;

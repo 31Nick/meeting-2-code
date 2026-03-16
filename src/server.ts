@@ -8,7 +8,7 @@ import type { GapItem, MeetingInfo } from "./agents/gap-analyzer.js";
 import { createEpicIssue, linkSubIssuesToEpic } from "./agents/epic-issue.js";
 import { createGithubIssues } from "./agents/github-issues.js";
 import { assignCodingAgent } from "./agents/coding-agent.js";
-import { deployToAzure, resetCorpWebsiteRepo } from "./agents/azure-deployer.js";
+import { deployToAzure, resetM2CWorkloadRepo } from "./agents/azure-deployer.js";
 import { validateDeployment } from "./agents/playwright-validator.js";
 import { executeLocalAgent } from "./agents/local-agent.js";
 
@@ -68,7 +68,7 @@ function sseHeaders(res: express.Response) {
 // Step 1: Extract meeting requirements + create epic (SSE)
 app.get("/api/analyze", async (req, res) => {
     const sendEvent = sseHeaders(res);
-    const meetingName = (req.query.meeting as string) || "Contoso Industries Redesign";
+    const meetingName = (req.query.meeting as string) || "Meeting 2 Code demo";
 
     try {
         const result = await extractMeetingRequirements(client, {
@@ -359,8 +359,8 @@ app.post("/api/execute-local-agent", async (req, res) => {
 // ─── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 
-// Reset corporate-website repo to clean state on startup (demo reset)
-resetCorpWebsiteRepo().then(() => {
+// Reset m2c-workload repo to clean state on startup (demo reset)
+resetM2CWorkloadRepo().then(() => {
     app.listen(PORT, () => {
         console.log(`\n🚀 Meeting-2-Ship running at http://localhost:${PORT}\n`);
     });

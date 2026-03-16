@@ -8,7 +8,7 @@ import { createAgentSession } from "./session-helpers.js";
 const execAsync = promisify(exec);
 
 const OWNER = "31Nick";
-const REPO = "corporate-website";
+const REPO = "m2c-workload";
 const REPO_URL = `https://github.com/${OWNER}/${REPO}.git`;
 const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/${REPO}`;
 
@@ -37,7 +37,7 @@ interface ExecuteLocalAgentOptions {
 
 // ── Clone helpers ─────────────────────────────────────────────────────────────
 
-/** Ensure the corporate-website repo is cloned locally and up-to-date. */
+/** Ensure the m2c-workload repo is cloned locally and up-to-date. */
 async function ensureClone(log: (m: string) => void): Promise<void> {
     if (!existsSync(join(REPO_PATH, ".git"))) {
         log(`Cloning ${OWNER}/${REPO} to ${REPO_PATH}...`);
@@ -47,7 +47,7 @@ async function ensureClone(log: (m: string) => void): Promise<void> {
     await execAsync("git checkout main --force", { cwd: REPO_PATH, timeout: 10_000 });
     await execAsync("git reset --hard origin/main", { cwd: REPO_PATH, timeout: 10_000 });
     await execAsync("git clean -fd", { cwd: REPO_PATH, timeout: 10_000 });
-    log("Local clone of corporate-website is up-to-date on main.");
+    log("Local clone of m2c-workload is up-to-date on main.");
 }
 
 /** Create a feature branch in the local clone (force-creates if it already exists). */
@@ -162,8 +162,8 @@ export async function executeLocalAgent(
 
     log(`Starting local agent execution for ${options.gaps.length} gap(s)...`);
 
-    // Ensure corporate-website is cloned and clean before starting
-    onProgress(options.gaps[0]?.id ?? 0, "Preparing local clone of corporate-website...");
+    // Ensure m2c-workload is cloned and clean before starting
+    onProgress(options.gaps[0]?.id ?? 0, "Preparing local clone of m2c-workload...");
     await ensureClone(log);
 
     for (let i = 0; i < options.gaps.length; i++) {

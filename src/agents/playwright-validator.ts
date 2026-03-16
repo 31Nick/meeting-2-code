@@ -10,7 +10,7 @@ const execAsync = promisify(exec);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
-const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/corporate-website`;
+const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/m2c-workload`;
 
 interface ValidationResult {
     requirementIndex: number;

@@ -1,7 +1,7 @@
 import type { CopilotClient, MCPLocalServerConfig, MCPRemoteServerConfig } from "@github/copilot-sdk";
 import { createAgentSession } from "./session-helpers.js";
 
-const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/corporate-website`;
+const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/m2c-workload`;
 
 export interface GapItem {
     id: number;
@@ -175,7 +175,7 @@ IMPORTANT: Do NOT use glob, view, grep, read_file, or any filesystem tools. Only
                 prompt: `The previous search didn't return meeting content. Try again with these strategies IN ORDER:
 
 1. List ALL my recent meetings or calendar events from the last 30 days.
-2. Look for any meeting with "Contoso" in the title, body, or attendees.
+2. Look for any meeting with "Meeting 2 Code" in the title, body, or attendees.
 3. If you find it, retrieve the full notes/transcript/body.
 4. Extract actionable requirements from the content.
 
@@ -238,7 +238,7 @@ export async function analyzeSelectedGaps(
     const log = options.onLog ?? (() => {});
 
     const concurrent = Math.min(MAX_CONCURRENT, requirements.length);
-    progress(4, "Analyzing 31Nick/corporate-website...");
+    progress(4, "Analyzing 31Nick/m2c-workload...");
     log(`Starting parallel gap analysis (${concurrent} concurrent sessions)...`);
     console.log(`[gap-analyzer] Starting parallel analysis of ${requirements.length} requirements (concurrency: ${concurrent})...`);
 
@@ -259,7 +259,7 @@ export async function analyzeSelectedGaps(
                 mcpServers: options.githubMcp,
                 workingDirectory: REPO_PATH,
                 systemMessage: {
-                    content: `You are a senior software architect performing gap analysis on the GitHub repository "31Nick/corporate-website".
+                    content: `You are a senior software architect performing gap analysis on the GitHub repository "31Nick/m2c-workload".
 
 You have access to GitHub MCP tools — USE THEM to browse the repository structure, read source files, and understand what currently exists.
 
@@ -282,7 +282,7 @@ Return ONLY a valid JSON object (no markdown, no commentary):
             });
 
             const result = await session.sendAndWait({
-                prompt: `Analyze this ONE requirement against the repository "31Nick/corporate-website":
+                prompt: `Analyze this ONE requirement against the repository "31Nick/m2c-workload":
 
 "${req.text}"
 

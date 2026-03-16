@@ -5,9 +5,9 @@ import { join } from "path";
 
 const execAsync = promisify(exec);
 
-const REPO = "corporate-website";
+const REPO = "m2c-workload";
 const REPO_PATH = `/Users/${process.env.USER || "31Nick"}/Repos/${REPO}`;
-const ENV_NAME = "corporate-website-dev";
+const ENV_NAME = "m2c-workload-dev";
 const AZURE_LOCATION = "eastus2";
 
 interface DeployResult {
@@ -44,7 +44,7 @@ async function run(
 }
 
 /**
- * Check if the corporate-website is already deployed on Azure via azd.
+ * Check if the m2c-workload is already deployed on Azure via azd.
  * Returns the endpoint URL if deployed, null otherwise.
  */
 async function checkExistingDeployment(log: (msg: string) => void): Promise<string | null> {
@@ -117,11 +117,11 @@ async function mergeLocalAgentBranches(log: (msg: string) => void): Promise<stri
 }
 
 /**
- * Reset the corporate-website repo to a clean origin/main state.
+ * Reset the m2c-workload repo to a clean origin/main state.
  * Deletes local feature/gap-* branches and hard-resets main.
  * Called on server startup to ensure a clean demo environment.
  */
-export async function resetCorpWebsiteRepo(): Promise<void> {
+export async function resetM2CWorkloadRepo(): Promise<void> {
     const log = (msg: string) => console.log(`[reset-repo] ${msg}`);
     try {
         // Ensure we are on main
@@ -133,7 +133,7 @@ export async function resetCorpWebsiteRepo(): Promise<void> {
         await execAsync("git fetch origin", { cwd: REPO_PATH, timeout: 30_000 });
         await execAsync("git reset --hard origin/main", { cwd: REPO_PATH, timeout: 10_000 });
         await execAsync("git clean -fd", { cwd: REPO_PATH, timeout: 10_000 });
-        log("Reset corporate-website to origin/main.");
+        log("Reset m2c-workload to origin/main.");
 
         // Delete local feature/gap-* branches
         const { stdout } = await execAsync(
@@ -148,9 +148,9 @@ export async function resetCorpWebsiteRepo(): Promise<void> {
             } catch { /* ignore */ }
         }
 
-        log("Corporate-website repo is clean and ready for demo.");
+        log("m2c Workload repo is clean and ready for demo.");
     } catch (err) {
-        console.error("[reset-repo] Warning: could not fully reset corporate-website:", err instanceof Error ? err.message : String(err));
+        console.error("[reset-repo] Warning: could not fully reset m2c Workload:", err instanceof Error ? err.message : String(err));
     }
 }
 
@@ -255,7 +255,7 @@ output id string = swa.id
 }
 
 /**
- * Deploy corporate-website to Azure using azd CLI directly.
+ * Deploy m2c-workload to Azure using azd CLI directly.
  * Steps: check existing → azd init → env setup → azd up → get URL.
  */
 export async function deployToAzure(options: DeployOptions): Promise<DeployResult> {
@@ -273,7 +273,7 @@ export async function deployToAzure(options: DeployOptions): Promise<DeployResul
 
             // Also check for uncommitted local changes (from local agent filesystem edits).
             // NOTE: This commit is LOCAL-ONLY (never pushed to origin).
-            // It gets discarded on server restart by resetCorpWebsiteRepo() which
+            // It gets discarded on server restart by resetM2CWorkloadRepo() which
             // runs `git reset --hard origin/main`.
             let hasLocalChanges = false;
             try {

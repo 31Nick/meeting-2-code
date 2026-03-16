@@ -68,8 +68,8 @@ meeting-2-code/
 | **Node.js** | v22 or later |
 | **GitHub CLI** | Authenticated — run `gh auth login` |
 | **GitHub Copilot** | Active subscription with Copilot SDK access |
-| **Microsoft 365** | Account with WorkIQ access and a meeting titled *"Contoso Industries Redesign"* containing notes/transcript |
-| **Target repo** | A GitHub repository to analyze (defaults to `danielmeppiel/corporate-website`) |
+| **Microsoft 365** | Account with WorkIQ access and a meeting titled *"Meeting 2 Code demo"* containing notes/transcript |
+| **Target repo** | A GitHub repository to analyze (defaults to `31Nick/m2c-workload`) |
 
 ## Getting Started
 

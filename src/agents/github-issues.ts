@@ -4,7 +4,7 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 const OWNER = "31Nick";
-const REPO = "corporate-website";
+const REPO = "m2c-workload";
 
 interface GapItem {
     id: number;
@@ -53,7 +53,7 @@ export async function createGithubIssues(
         log(`Creating issue ${i + 1}/${total}: ${label}`);
         console.log(`[github-issues] Creating issue ${i + 1}/${total}...`);
 
-        const title = `[Contoso Redesign] ${gap.requirement}`;
+        const title = `[Meeting 2 Code Redesign] ${gap.requirement}`;
         const bodyParts = [
             "## Description",
             gap.gap,
