@@ -24,6 +24,41 @@ interface DeployOptions {
     onLog?: (message: string) => void;
 }
 
+async function checkCommandAvailable(command: string): Promise<boolean> {
+    try {
+        if (process.platform === "win32") {
+            await execAsync(`where ${command}`);
+        } else {
+            await execAsync(`command -v ${command}`);
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function ensureAzureTooling(log: (msg: string) => void): Promise<{ ok: true } | { ok: false; message: string }> {
+    const hasAzd = await checkCommandAvailable("azd");
+    if (!hasAzd) {
+        const message = process.platform === "win32"
+            ? "Azure Developer CLI (azd) is not installed or not on PATH. Install from https://aka.ms/install-azd or run 'winget install Microsoft.Azd', then restart your terminal/VS Code."
+            : "Azure Developer CLI (azd) is not installed or not on PATH. Install from https://aka.ms/install-azd, then restart your terminal.";
+        log(message);
+        return { ok: false, message };
+    }
+
+    const hasAz = await checkCommandAvailable("az");
+    if (!hasAz) {
+        const message = process.platform === "win32"
+            ? "Azure CLI (az) is not installed or not on PATH. Install from https://aka.ms/installazurecliwindows, then restart your terminal/VS Code."
+            : "Azure CLI (az) is not installed or not on PATH. Install from https://aka.ms/installazurecli, then restart your terminal.";
+        log(message);
+        return { ok: false, message };
+    }
+
+    return { ok: true };
+}
+
 /** Run a shell command in the repo directory, streaming output to log */
 async function run(
     cmd: string,
@@ -265,6 +300,13 @@ export async function deployToAzure(options: DeployOptions): Promise<DeployResul
     const log = options.onLog ?? (() => {});
 
     try {
+        // ── Preflight: required CLIs ───────────────────────────────────────
+        progress(0, "Checking local Azure CLI tooling...");
+        const tooling = await ensureAzureTooling(log);
+        if (!tooling.ok) {
+            return { success: false, message: tooling.message, errorType: "unknown" };
+        }
+
         // ── Step 0: check existing ────────────────────────────────────────
         progress(0, "Checking existing Azure deployment...");
         const existingUrl = await checkExistingDeployment(log);
